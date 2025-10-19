@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        .panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            height: 50px;
+            background-color: rgba(255, 255, 255, 0.5);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            color: black;
+            z-index: 1000;
+            box-sizing: border-box;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .panel .left-section,
+        .panel .right-section {
+            display: flex;
+            gap: 20px;
+        }
+
+        .panel .left-section div,
+        .panel .right-section div {
+            cursor: pointer;
+            background-color: white;
+            color: black;
+            padding: 5px 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .floating-buttons {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .floating-buttons button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+        }
+
+        #modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            z-index: 2000;
+            display: none;
+        }
+
+        #inventoryModal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            z-index: 2000;
+            display: none;
+            width: 80%;
+            max-width: 800px;
+            height: 80%;
+            max-height: 600px;
+        }
+
+        .inventory-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .inventory-header h2 {
+            margin: 0;
+        }
+
+        .close-button {
+            cursor: pointer;
+            font-size: 24px;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .inventory-details {
+            display: flex;
+            gap: 20px;
+            height: 30%;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+
+        .item-image {
+            width: 150px;
+            height: 150px;
+            object-fit: contain;
+        }
+
+        .item-info {
+            flex-grow: 1;
+        }
+
+        .inventory-grid {
+            height: 50%;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+
+        .inventory-item {
+            aspect-ratio: 1;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        .inventory-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .inventory-item img {
+            width: 70%;
+            height: 70%;
+            object-fit: contain;
+        }
+
+        .inventory-item .count {
+            margin-top: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="panel">
+        <div class="left-section">
+            <div onclick="alert('Уровень игрока')">Уровень: 2</div>
+            <div onclick="alert('Количество монет')">Монеты: 2345</div>
+        </div>
+        <div class="right-section">
+            <div onclick="alert('Уведомления')">🔔</div>
+            <div onclick="alert('Настройки')">⚙️</div>
+        </div>
+    </div>
+    <div class="floating-buttons">
+        <button onclick="alert('Режим редактирования')">🔨</button>
+        <button id="inventory-button">📦</button>
+        <button onclick="alert('Магазин')">💲</button>
+    </div>
+    <div id="modal">
+        <div id="modal-content"></div>
+    </div>
+    <div id="inventoryModal">
+        <div class="inventory-header">
+            <h2>Инвентарь</h2>
+            <button class="close-button" onclick="closeInventoryModal()">✕</button>
+        </div>
+        <div class="inventory-details">
+            <img class="item-image" src="" alt="" style="display: none">
+            <div class="item-info"></div>
+        </div>
+        <div class="inventory-grid"></div>
+    </div>
+    <script>
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const objectsCanvas = document.createElement('canvas');
+        const objectsCtx = objectsCanvas.getContext('2d');
+        document.body.style.margin = '0';
+        document.body.style.overflow = 'hidden';
+        document.body.appendChild(canvas);
+        document.body.appendChild(objectsCanvas);
+        objectsCanvas.style.position = 'absolute';
+        objectsCanvas.style.top = '0';
+        objectsCanvas.style.left = '0';
+        objectsCanvas.style.pointerEvents = 'none';
+
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        objectsCanvas.width = width;
+        objectsCanvas.height = height;
+
+        let offsetX = 0;
+        let offsetY = 0;
+        let scale = 1;
+        let isDragging = false;
+        let dragStartX, dragStartY;
+        let lastTouchDistance = null;
+
+        const gardenBedImage = new Image();
+        gardenBedImage.crossOrigin = "anonymous";
+        gardenBedImage.src = 'garden_bed.png';
+
+        const ambarImage = new Image();
+        ambarImage.crossOrigin = "anonymous";
+        ambarImage.src = '2_ambar_c.png';
+
+        function drawCubeObject(gameObject) {
+            const { type, x, y, metadata } = gameObject;
+            const { width: imageWidth, height: imageHeight } = metadata;
+            let image;
+            const gridSize = 50 * scale;
+            const halfGridSize = gridSize / 2;
+            let objectWidth, objectX, objectY, objectHeight;
+
+            if (type === 'garden_bed') {
+                image = gardenBedImage;
+                objectWidth = gridSize;
+                objectX = ((x - y) / 2) * gridSize + offsetX + width / 2 - halfGridSize;
+                objectHeight = halfGridSize * 1.15;
+                objectY = ((x + y) / 2) * gridSize / 2 + offsetY + height / 4 - halfGridSize;
+                objectY = objectY - gridSize * 0.08;
+            } else if (type === 'ambar') {
+                image = ambarImage;
+                objectWidth = (imageHeight - 0.8) * gridSize;
+                objectX = ((x - y) / 2) * gridSize + offsetX + width / 2 - gridSize;
+                objectX = objectX + halfGridSize * 0.1;
+                objectHeight = (imageWidth - 0.07) * gridSize;
+                objectY = ((x + y) / 2) * gridSize / 2 + offsetY + height / 4 - halfGridSize;
+                objectY = objectY - halfGridSize * 3;
+            } else {
+                console.error('Unknown object type:', type);
+                return;
+            }
+            if (!image.complete || image.naturalWidth === 0) {
+                console.error('Image is not loaded or is broken:', image.src);
+                return;
+            }
+
+            // Save object coordinates for hit detection
+            gameObject.renderedX = objectX;
+            gameObject.renderedY = objectY;
+            gameObject.renderedWidth = objectWidth;
+            gameObject.renderedHeight = objectHeight;
+
+            objectsCtx.drawImage(image, objectX, objectY, objectWidth, objectHeight);
+        }
+
+        gardenBedImage.onload = () => {
+            draw();
+        };
+
+        ambarImage.onload = () => {
+            draw();
+        };
+
+        function drawBackground() {
+            const gradient = ctx.createLinearGradient(0, 0, 0, height);
+            gradient.addColorStop(0, '#a8e063');
+            gradient.addColorStop(1, '#56ab2f');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+        }
+
+        function drawIsometricGrid() {
+            const gridSize = 50 * scale;
+            const halfGridSize = gridSize / 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 1;
+
+            for (let row = 0; row < 20; row++) {
+                for (let col = 0; col < 20; col++) {
+                    const x = (col - row) * halfGridSize + offsetX + width / 2;
+                    const y = (col + row) * halfGridSize / 2 + offsetY + height / 4;
+
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(x + halfGridSize, y + halfGridSize / 2);
+                    ctx.lineTo(x, y + halfGridSize);
+                    ctx.lineTo(x - halfGridSize, y + halfGridSize / 2);
+                    ctx.closePath();
+                    ctx.stroke();
+                }
+            }
+        }
+
+        let gameObjects = [];
+
+        async function fetchGameObjects() {
+            try {
+                const response = await fetch('/api/objects');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const json = await response.json();
+                gameObjects = json.data;
+            } catch (error) {
+                console.error('Failed to fetch game objects:', error);
+                gameObjects = [
+                    { type: 'garden_bed', x: 3, y: 4, metadata: { width: 1, height: 1 } },
+                    { type: 'garden_bed', x: 1, y: 1, metadata: { width: 1, height: 1 } },
+                    { type: 'garden_bed', x: 3, y: 5, metadata: { width: 1, height: 1 } },
+                    { type: 'ambar', x: 10, y: 10, metadata: { width: 2, height: 3 } }
+                ];
+            }
+            draw();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            objectsCtx.clearRect(0, 0, width, height);
+            
+            drawBackground();
+            drawIsometricGrid();
+            
+            gameObjects.sort((a, b) => a.x - b.x || a.y - b.y);
+            gameObjects.forEach(obj => {
+                drawCubeObject(obj);
+            });
+        }
+
+        fetchGameObjects();
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaX = (e.clientX - dragStartX) / scale;
+                const deltaY = (e.clientY - dragStartY) / scale;
+                offsetX += deltaX * scale;
+                offsetY += deltaY * scale;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                draw();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = 1.1;
+            const mouseX = e.clientX - canvas.offsetLeft;
+            const mouseY = e.clientY - canvas.offsetTop;
+
+            const worldX = (mouseX - offsetX - width / 2) / scale;
+            const worldY = (mouseY - offsetY - height / 4) / scale;
+
+            if (e.deltaY < 0) {
+                scale *= zoomFactor;
+            } else {
+                scale /= zoomFactor;
+            }
+
+            offsetX = mouseX - worldX * scale - width / 2;
+            offsetY = mouseY - worldY * scale - height / 4;
+
+            draw();
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                dragStartX = e.touches[0].clientX;
+                dragStartY = e.touches[0].clientY;
+            } else if (e.touches.length === 2) {
+                lastTouchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (isDragging && e.touches.length === 1) {
+                const deltaX = (e.touches[0].clientX - dragStartX) / scale;
+                const deltaY = (e.touches[0].clientY - dragStartY) / scale;
+                offsetX += deltaX * scale;
+                offsetY += deltaY * scale;
+                dragStartX = e.touches[0].clientX;
+                dragStartY = e.touches[0].clientY;
+                draw();
+            } else if (e.touches.length === 2) {
+                const currentTouchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                if (lastTouchDistance) {
+                    const zoomFactor = currentTouchDistance / lastTouchDistance;
+                    const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+                    const worldX = (centerX - offsetX - width / 2) / scale;
+                    const worldY = (centerY - offsetY - height / 4) / scale;
+
+                    scale *= zoomFactor;
+
+                    offsetX = centerX - worldX * scale - width / 2;
+                    offsetY = centerY - worldY * scale - height / 4;
+
+                    draw();
+                }
+                lastTouchDistance = currentTouchDistance;
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) {
+                isDragging = false;
+                lastTouchDistance = null;
+            }
+        });
+
+        canvas.addEventListener('click', (e) => {
+            const mouseX = e.clientX - canvas.offsetLeft;
+            const mouseY = e.clientY - canvas.offsetTop;
+
+            // Create a temporary canvas for hit testing
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+
+            // Sort objects by reverse order (top to bottom) for proper hit testing
+            gameObjects.sort((a, b) => b.y - a.y || b.x - a.x);
+
+            for (const obj of gameObjects) {
+                const { renderedX, renderedY, renderedWidth, renderedHeight } = obj;
+
+                // Check if click is within object bounds first
+                if (
+                    mouseX >= renderedX &&
+                    mouseX <= renderedX + renderedWidth &&
+                    mouseY >= renderedY &&
+                    mouseY <= renderedY + renderedHeight
+                ) {
+                    // Clear temporary canvas
+                    tempCtx.clearRect(0, 0, width, height);
+
+                    // Draw only this object on temporary canvas
+                    if (obj.type === 'garden_bed') {
+                        tempCtx.drawImage(gardenBedImage, renderedX, renderedY, renderedWidth, renderedHeight);
+                    } else if (obj.type === 'ambar') {
+                        tempCtx.drawImage(ambarImage, renderedX, renderedY, renderedWidth, renderedHeight);
+                    }
+
+                    // Check if pixel at click position is not transparent
+                    const imageData = tempCtx.getImageData(mouseX, mouseY, 1, 1).data;
+                    if (imageData[3] !== 0) { // Alpha channel is not transparent
+                        if (isBuildingMode) {
+                            selectedObject = obj;
+                        } else {
+                            showModal(obj);
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+
+        function showModal(obj) {
+            const modal = document.getElementById('modal');
+            const modalContent = document.getElementById('modal-content');
+
+            modalContent.innerHTML = `
+                <h3>Информация об объекте</h3>
+                <p>Тип: ${obj.type}</p>
+                <p>Координаты: (${obj.x}, ${obj.y})</p>
+                <p>Размеры: ${obj.metadata.width}x${obj.metadata.height}</p>
+                <button id="closeModal">Закрыть</button>
+            `;
+
+            modal.style.display = 'block';
+
+            document.getElementById('closeModal').addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+        }
+
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            objectsCanvas.width = width;
+            objectsCanvas.height = height;
+            draw();
+        });
+
+        draw();
+
+        // Добавляем функции для работы с инвентарем
+        let inventoryItems = [];
+
+        async function fetchInventory() {
+            try {
+                const response = await fetch('/api/inventory');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const json = await response.json();
+                inventoryItems = json.data;
+            } catch (error) {
+                console.error('Failed to fetch inventory:', error);
+                inventoryItems = [
+                    {
+                        "type": "garden_bed",
+                        "count": 2,
+                        "name": "Грядка",
+                        "description": "Грядка, самая обычная грядка земли",
+                        "size": "1x1",
+                        "price": 0
+                    },
+                    {
+                        "type": "2_ambar_c",
+                        "count": 1,
+                        "name": "Амбар",
+                        "description": "Здесь хранятся вещи",
+                        "size": "2x3",
+                        "price": 0
+                    },
+                    {
+                        "type": "garden_bed",
+                        "count": 2,
+                        "name": "Грядка",
+                        "description": "Грядка, самая обычная грядка земли",
+                        "size": "1x1",
+                        "price": 0
+                    },
+                    {
+                        "type": "2_ambar_c",
+                        "count": 1,
+                        "name": "Амбар",
+                        "description": "Здесь хранятся вещи",
+                        "size": "2x3",
+                        "price": 0
+                    },
+                    {
+                        "type": "garden_bed",
+                        "count": 2,
+                        "name": "Грядка",
+                        "description": "Грядка, самая обычная грядка земли",
+                        "size": "1x1",
+                        "price": 0
+                    },
+                    {
+                        "type": "2_ambar_c",
+                        "count": 1,
+                        "name": "Амбар",
+                        "description": "Здесь хранятся вещи",
+                        "size": "2x3",
+                        "price": 0
+                    },
+                    {
+                        "type": "garden_bed",
+                        "count": 2,
+                        "name": "Грядка",
+                        "description": "Грядка, самая обычная грядка земли",
+                        "size": "1x1",
+                        "price": 0
+                    },
+                    {
+                        "type": "2_ambar_c",
+                        "count": 1,
+                        "name": "Амбар",
+                        "description": "Здесь хранятся вещи",
+                        "size": "2x3",
+                        "price": 0
+                    },
+                    {
+                        "type": "garden_bed",
+                        "count": 2,
+                        "name": "Грядка",
+                        "description": "Грядка, самая обычная грядка земли",
+                        "size": "1x1",
+                        "price": 0
+                    },
+                ];
+            }
+            renderInventoryGrid();
+        }
+
+        function renderInventoryGrid() {
+            const grid = document.querySelector('.inventory-grid');
+            grid.innerHTML = '';
+            
+            inventoryItems.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'inventory-item';
+                itemElement.innerHTML = `
+                    <img src="${item.type}.png" alt="${item.name}">
+                    <div class="count">${item.count}</div>
+                `;
+                itemElement.addEventListener('click', () => showItemDetails(item));
+                grid.appendChild(itemElement);
+            });
+        }
+
+        function showItemDetails(item) {
+            const detailsImage = document.querySelector('.inventory-details .item-image');
+            const detailsInfo = document.querySelector('.inventory-details .item-info');
+            
+            detailsImage.src = `${item.type}.png`;
+            detailsImage.alt = item.name;
+            detailsImage.style.display = 'block';
+            
+            detailsInfo.innerHTML = `
+                <h3>${item.name}</h3>
+                <p>Описание: ${item.description}</p>
+                <p>Размер: ${item.size}</p>
+                <p>Стоимость: ${item.price}</p>
+            `;
+        }
+
+        function showInventoryModal() {
+            const modal = document.getElementById('inventoryModal');
+            modal.style.display = 'block';
+            fetchInventory();
+        }
+
+        function closeInventoryModal() {
+            const modal = document.getElementById('inventoryModal');
+            modal.style.display = 'none';
+        }
+
+        // Находим кнопку инвентаря и добавляем обработчик
+        const inventoryButton = document.getElementById('inventory-button');
+        inventoryButton.onclick = showInventoryModal;
+
+        let progressBar = null;
+        let progressInterval = null;
+        let progress = 0;
+        let isBuildingMode = false;
+        let selectedObject = null;
+        const progressBarDuration = 2000; // 2 seconds
+
+        canvas.addEventListener('mousedown', (e) => {
+            const mouseX = e.clientX - canvas.offsetLeft;
+            const mouseY = e.clientY - canvas.offsetTop;
+
+            // Create a temporary canvas for hit testing
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+
+            // Sort objects by reverse order (top to bottom) for proper hit testing
+            gameObjects.sort((a, b) => b.y - a.y || b.x - a.x);
+
+            for (const obj of gameObjects) {
+                const { renderedX, renderedY, renderedWidth, renderedHeight } = obj;
+
+                // Check if click is within object bounds first
+                if (
+                    mouseX >= renderedX &&
+                    mouseX <= renderedX + renderedWidth &&
+                    mouseY >= renderedY &&
+                    mouseY <= renderedY + renderedHeight
+                ) {
+                    // Clear temporary canvas
+                    tempCtx.clearRect(0, 0, width, height);
+
+                    // Draw only this object on temporary canvas
+                    if (obj.type === 'garden_bed') {
+                        tempCtx.drawImage(gardenBedImage, renderedX, renderedY, renderedWidth, renderedHeight);
+                    } else if (obj.type === 'ambar') {
+                        tempCtx.drawImage(ambarImage, renderedX, renderedY, renderedWidth, renderedHeight);
+                    }
+
+                    // Check if pixel at click position is not transparent
+                    const imageData = tempCtx.getImageData(mouseX, mouseY, 1, 1).data;
+                    if (imageData[3] !== 0) { // Alpha channel is not transparent
+                        selectedObject = obj;
+                        if (!isBuildingMode) {
+                            startProgressBar(obj);
+                        } else {
+                            selectedObject = null;
+                        }
+                        break;
+                    }
+                }
+                selectedObject = null;
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (progressBar) {
+                cancelProgressBar();
+            }
+        });
+
+        function startProgressBar(obj) {
+            progressBar = document.createElement('div');
+            progressBar.style.position = 'absolute';
+            progressBar.style.top = `${obj.renderedY - 10}px`;
+            progressBar.style.left = `${obj.renderedX}px`;
+            progressBar.style.width = `${obj.renderedWidth}px`;
+            progressBar.style.height = '5px';
+            progressBar.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+            progressBar.style.borderRadius = '2px';
+            progressBar.style.overflow = 'hidden';
+
+            const progressFill = document.createElement('div');
+            progressFill.style.height = '100%';
+            progressFill.style.width = '0%';
+            progressFill.style.backgroundColor = 'green';
+            progressBar.appendChild(progressFill);
+
+            document.body.appendChild(progressBar);
+
+            progress = 0;
+            progressInterval = setInterval(() => {
+                progress += 100 / (progressBarDuration / 100);
+                progressFill.style.width = `${progress}%`;
+
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    enterBuildingMode(obj);
+                }
+            }, 100);
+        }
+
+        function cancelProgressBar() {
+            clearInterval(progressInterval);
+            if (progressBar) {
+                document.body.removeChild(progressBar);
+                progressBar = null;
+            }
+            progress = 0;
+        }
+
+        function enterBuildingMode(obj) {
+            isBuildingMode = true;
+            // selectedObject = obj;
+            cancelProgressBar();
+
+            // Hide other buttons
+            document.querySelectorAll('.floating-buttons button').forEach(button => {
+                button.style.display = 'none';
+            });
+
+            // Add back button with a specific ID
+            const backButton = document.createElement('button');
+            backButton.id = 'back-button';
+            backButton.textContent = '↩';
+            backButton.style.width = '50px';
+            backButton.style.height = '50px';
+            backButton.style.border = 'none';
+            backButton.style.borderRadius = '50%';
+            backButton.style.backgroundColor = 'white';
+            backButton.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';
+            backButton.style.cursor = 'pointer';
+            backButton.style.position = 'absolute';
+            backButton.style.bottom = '20px';
+            backButton.style.right = '20px';
+            backButton.addEventListener('click', exitBuildingMode);
+            document.body.appendChild(backButton);
+
+            canvas.addEventListener('mousemove', moveObject);
+        }
+
+        function moveObject(e) {
+            if (isBuildingMode && selectedObject) {
+                const mouseX = e.clientX - canvas.offsetLeft;
+                const mouseY = e.clientY - canvas.offsetTop;
+
+                const gridSize = 50 * scale;
+                const halfGridSize = gridSize / 2;
+
+                // Преобразуем координаты мыши в координаты изометрической сетки
+                const screenX = mouseX - offsetX - width / 2;
+                const screenY = (mouseY - offsetY - height / 4) * 4;
+
+                // Преобразуем экранные координаты в изометрические
+                const isoX = Math.round((screenX / halfGridSize + screenY / gridSize) / 2);
+                const isoY = Math.round((screenY / gridSize - screenX / halfGridSize) / 2);
+
+                selectedObject.x = isoX;
+                selectedObject.y = isoY;
+
+                draw();
+            }
+        }
+
+        function exitBuildingMode() {
+            isBuildingMode = false;
+            selectedObject = null;
+
+            // Ensure the back button is removed
+            const backButton = document.getElementById('back-button');
+            if (backButton) {
+                backButton.remove();
+            }
+
+            // Show other buttons
+            document.querySelectorAll('.floating-buttons button').forEach(button => {
+                button.style.display = 'block';
+            });
+
+            canvas.removeEventListener('mousemove', moveObject);
+        }
+    </script>
+</body>
+</html>
